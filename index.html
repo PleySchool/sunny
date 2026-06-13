@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a6e8a">
+<title>花蓮宜蘭公路旅行 ｜ 一家五口</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root{
+    --ocean:#0a6e8a; --ocean-deep:#064c61; --teal:#13a4c4;
+    --sand:#f6efe3; --sand-deep:#ecdfc8; --coral:#ef7d5a;
+    --ink:#243137; --muted:#6b7d85; --line:#e3e9ec;
+    --card:#ffffff; --ok:#2fa872; --gold:#e0a93c;
+    --nav-h:64px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{font-family:-apple-system,"PingFang TC","Helvetica Neue",sans-serif;color:var(--ink);background:var(--sand);}
+  body{padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom));line-height:1.6;}
+  .wrap{max-width:480px;margin:0 auto;min-height:100vh;background:var(--sand);}
+
+  .hero{position:relative;padding:30px 20px 22px;color:#fff;
+    background:linear-gradient(135deg,#0a6e8a 0%,#13a4c4 55%,#3fc1d6 100%);overflow:hidden;}
+  .hero::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:34px;
+    background:radial-gradient(120% 100% at 50% 0,transparent 60%,var(--sand) 61%);}
+  .hero .wave{position:absolute;right:-20px;top:-10px;font-size:120px;opacity:.14;}
+  .hero h1{font-size:23px;font-weight:800;letter-spacing:.5px;position:relative;}
+  .hero .sub{font-size:13px;opacity:.95;margin-top:6px;position:relative;}
+  .hero .pills{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;position:relative;}
+  .hero .pill{background:rgba(255,255,255,.22);backdrop-filter:blur(4px);
+    padding:5px 11px;border-radius:20px;font-size:12px;font-weight:600;}
+
+  .page{display:none;padding:16px 14px 24px;animation:fade .25s ease;}
+  .page.active{display:block;}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .page-title{font-size:18px;font-weight:800;margin:4px 4px 14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+  .page-title small{font-size:12px;font-weight:500;color:var(--muted);}
+
+  .days{display:flex;gap:7px;overflow-x:auto;padding:2px 4px 12px;scrollbar-width:none;}
+  .days::-webkit-scrollbar{display:none;}
+  .day-btn{flex:0 0 auto;border:none;background:#fff;border:1.5px solid var(--line);
+    color:var(--muted);padding:8px 13px;border-radius:14px;font-size:13px;font-weight:700;
+    text-align:center;line-height:1.25;cursor:pointer;transition:.15s;}
+  .day-btn .d{font-size:11px;font-weight:600;opacity:.8;display:block;}
+  .day-btn.active{background:var(--ocean);color:#fff;border-color:var(--ocean);box-shadow:0 4px 12px rgba(10,110,138,.28);}
+
+  .day-pane{display:none;}
+  .day-pane.active{display:block;}
+  .route-bar{background:linear-gradient(90deg,var(--sand-deep),#f2e8d6);border-radius:12px;
+    padding:10px 13px;font-size:13px;font-weight:700;color:var(--ocean-deep);margin-bottom:14px;
+    display:flex;align-items:center;gap:8px;}
+
+  .tl{position:relative;padding-left:20px;}
+  .tl::before{content:"";position:absolute;left:5px;top:6px;bottom:6px;width:2px;background:var(--sand-deep);}
+  .ev{position:relative;margin-bottom:13px;}
+  .ev::before{content:"";position:absolute;left:-18px;top:6px;width:11px;height:11px;border-radius:50%;
+    background:var(--teal);border:2.5px solid #fff;box-shadow:0 0 0 1.5px var(--teal);}
+  .ev.star::before{background:var(--coral);box-shadow:0 0 0 1.5px var(--coral);}
+  .card{background:var(--card);border-radius:14px;padding:12px 13px;box-shadow:0 2px 10px rgba(36,49,55,.06);}
+  .card .time{font-size:12px;font-weight:800;color:var(--coral);letter-spacing:.3px;}
+  .card .title{font-size:15px;font-weight:700;margin:2px 0 3px;}
+  .card .note{font-size:12.5px;color:var(--muted);}
+  .card .photo{width:calc(100% + 26px);height:150px;object-fit:cover;display:block;margin:-12px -13px 10px;border-radius:14px 14px 0 0;background:var(--sand-deep);}
+  .block .photo{width:calc(100% + 30px);height:165px;object-fit:cover;display:block;margin:-15px -15px 13px;border-radius:16px 16px 0 0;background:var(--sand-deep);}
+  .tag{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:8px;margin-left:6px;vertical-align:middle;}
+  .tag.opt{background:#fff3e8;color:var(--coral);}
+  .tag.must{background:#e7f6ef;color:var(--ok);}
+  .tag.self{background:#fdf4dd;color:var(--gold);}
+
+  .btn-row{display:flex;gap:7px;margin-top:9px;flex-wrap:wrap;}
+  .mapbtn{display:inline-flex;align-items:center;gap:5px;background:var(--ocean);color:#fff;
+    text-decoration:none;font-size:12px;font-weight:700;padding:7px 12px;border-radius:10px;transition:.15s;border:none;cursor:pointer;}
+  .mapbtn:active{transform:scale(.96);}
+  .mapbtn.ghost{background:#fff;color:var(--ocean);border:1.5px solid var(--ocean);}
+  .mapbtn.ref{background:#fff;color:var(--coral);border:1.5px solid var(--coral);}
+  .mapbtn.lock{background:#fff;color:var(--ocean-deep);border:1.5px solid var(--sand-deep);width:100%;justify-content:center;padding:9px;font-size:13px;}
+
+  .block{background:#fff;border-radius:16px;padding:15px;box-shadow:0 2px 10px rgba(36,49,55,.06);margin-bottom:13px;}
+  .block h3{font-size:15.5px;font-weight:800;display:flex;align-items:center;gap:7px;margin-bottom:3px;}
+  .block .addr{font-size:12.5px;color:var(--muted);margin:4px 0;}
+  .kv{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:5px 0;border-bottom:1px dashed var(--line);}
+  .kv:last-child{border-bottom:none;}
+  .kv .k{color:var(--muted);flex:0 0 auto;}
+  .kv .v{font-weight:600;text-align:right;}
+  .badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:8px;background:#e7f6ef;color:var(--ok);margin-left:6px;}
+
+  .seg{background:#fff;border-radius:14px;padding:13px;box-shadow:0 2px 10px rgba(36,49,55,.06);margin-bottom:11px;}
+  .seg .head{font-size:15px;font-weight:800;color:var(--ocean-deep);display:flex;align-items:center;gap:7px;}
+  .seg .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;}
+  .seg .cell{background:var(--sand);border-radius:10px;padding:8px 10px;}
+  .seg .cell .lab{font-size:11px;color:var(--muted);}
+  .seg .cell .num{font-size:14px;font-weight:800;color:var(--ink);}
+  .seg-map{margin:11px 0 4px;height:190px;border-radius:13px;overflow:hidden;border:1px solid var(--line);background:#e8eef0;}
+  .seg-map .leaflet-container{height:100%;width:100%;background:#e8eef0;font-family:inherit;}
+  .leaflet-tooltip.pin-lab{background:#fff;border:none;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.25);font-size:11px;font-weight:800;padding:2px 7px;color:var(--ink);}
+  .leaflet-tooltip.pin-lab.start{color:var(--teal);}
+  .leaflet-tooltip.pin-lab.end{color:var(--coral);}
+  .map-credit{font-size:9.5px;color:var(--muted);text-align:right;margin:2px 4px 0;}
+  .warn{background:#fff6ed;border:1px solid #fbdcc4;border-radius:12px;padding:11px 13px;font-size:12.5px;color:#9a5a30;margin-bottom:13px;}
+  .warn b{color:#7a4220;}
+
+  /* 準備：待辦 / 清單 */
+  .sec-card{background:#fff;border-radius:16px;padding:8px 15px 12px;box-shadow:0 2px 10px rgba(36,49,55,.06);margin-bottom:13px;}
+  .sec-card .gh{font-size:14px;font-weight:800;padding:11px 0 6px;color:var(--ocean-deep);display:flex;align-items:center;gap:6px;}
+  .chk{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:13.5px;}
+  .chk:first-of-type{border-top:none;}
+  .chk .cbx{flex:0 0 auto;width:20px;height:20px;border:2px solid var(--line);border-radius:6px;margin-top:1px;
+    display:flex;align-items:center;justify-content:center;transition:.15s;cursor:pointer;}
+  .chk.done .cbx{background:var(--ok);border-color:var(--ok);}
+  .chk .cbx svg{width:12px;height:12px;opacity:0;}
+  .chk.done .cbx svg{opacity:1;}
+  .chk .lab{flex:1;cursor:text;outline:none;border-radius:5px;padding:1px 3px;margin:-1px -1px -1px -3px;}
+  .chk .lab:focus{background:#fff7ec;box-shadow:0 0 0 2px var(--sand-deep);}
+  .chk.done .lab{color:var(--muted);text-decoration:line-through;}
+  .chk .del{flex:0 0 auto;color:#c9d2d6;font-size:18px;line-height:1;cursor:pointer;padding:0 2px;font-weight:700;}
+  .chk .del:active{color:var(--coral);}
+  .additem{display:flex;gap:7px;padding:10px 0 4px;border-top:1px solid var(--line);margin-top:2px;}
+  .additem input{flex:1;border:1.5px solid var(--line);border-radius:10px;padding:8px 11px;font-size:13.5px;font-family:inherit;}
+  .additem input:focus{outline:none;border-color:var(--teal);}
+  .additem button{flex:0 0 auto;background:var(--teal);color:#fff;border:none;border-radius:10px;padding:0 15px;font-size:14px;font-weight:800;cursor:pointer;}
+
+  /* 人員 */
+  .ppl{display:flex;gap:7px;overflow-x:auto;padding:2px 4px 12px;scrollbar-width:none;}
+  .ppl::-webkit-scrollbar{display:none;}
+  .ppl-btn{flex:0 0 auto;border:1.5px solid var(--line);background:#fff;color:var(--muted);
+    padding:7px 14px;border-radius:14px;font-size:14px;font-weight:700;cursor:pointer;transition:.15s;text-align:center;line-height:1.2;}
+  .ppl-btn .mini{display:block;font-size:10.5px;font-weight:600;opacity:.85;margin-top:1px;}
+  .ppl-btn.active{background:var(--coral);color:#fff;border-color:var(--coral);box-shadow:0 4px 12px rgba(239,125,90,.3);}
+
+  .overview{background:#fff;border-radius:16px;padding:13px 15px;box-shadow:0 2px 10px rgba(36,49,55,.06);margin-bottom:13px;}
+  .overview .oh{font-size:13.5px;font-weight:800;color:var(--ocean-deep);margin-bottom:9px;}
+  .ovr{display:flex;align-items:center;gap:10px;margin:7px 0;font-size:12.5px;}
+  .ovr .nm{flex:0 0 42px;font-weight:700;}
+  .ovr .bar{flex:1;height:9px;background:var(--sand-deep);border-radius:6px;overflow:hidden;}
+  .ovr .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--teal),var(--ok));border-radius:6px;transition:width .3s;}
+  .ovr .pct{flex:0 0 auto;font-weight:700;color:var(--muted);width:42px;text-align:right;}
+  .person-pane{display:none;}
+  .person-pane.active{display:block;}
+
+  /* 花費 toggle */
+  .toggle{display:flex;background:var(--sand-deep);border-radius:13px;padding:4px;margin-bottom:14px;}
+  .toggle button{flex:1;border:none;background:none;padding:9px;border-radius:10px;font-size:13.5px;font-weight:800;color:var(--ocean-deep);cursor:pointer;transition:.15s;}
+  .toggle button.active{background:#fff;color:var(--ocean);box-shadow:0 2px 6px rgba(36,49,55,.1);}
+  .spend-view{display:none;}
+  .spend-view.active{display:block;}
+
+  .bud-total{background:linear-gradient(135deg,var(--ocean),var(--teal));color:#fff;border-radius:16px;padding:16px;text-align:center;margin-bottom:13px;}
+  .bud-total .lab{font-size:12.5px;opacity:.92;}
+  .bud-total .num{font-size:30px;font-weight:800;margin-top:2px;}
+  .bud-total .cap{font-size:11.5px;opacity:.9;margin-top:4px;}
+  .brow{display:flex;justify-content:space-between;font-size:13.5px;padding:9px 0;border-bottom:1px dashed var(--line);}
+  .brow:last-child{border-bottom:none;}
+  .brow .ok{color:var(--ok);font-size:11px;font-weight:700;}
+  .brow .est{color:var(--muted);font-size:11px;}
+  .brow .amt{font-weight:700;}
+  .selfpay{background:#fdf4dd;border-radius:14px;padding:13px 15px;margin-top:12px;font-size:13px;}
+  .selfpay h4{font-size:13.5px;color:var(--gold);margin-bottom:6px;}
+
+  /* 記帳 */
+  .exp-form{background:#fff;border-radius:16px;padding:14px 15px;box-shadow:0 2px 10px rgba(36,49,55,.06);margin-bottom:13px;}
+  .exp-form .fr{display:flex;gap:8px;margin-bottom:9px;}
+  .exp-form input,.exp-form select{border:1.5px solid var(--line);border-radius:10px;padding:9px 11px;font-size:13.5px;font-family:inherit;background:#fff;}
+  .exp-form input:focus,.exp-form select:focus{outline:none;border-color:var(--teal);}
+  .exp-form .i-item{flex:1;}
+  .exp-form .i-amt{flex:0 0 96px;}
+  .exp-form .i-payer{flex:0 0 96px;}
+  .exp-form .addbtn{width:100%;background:var(--coral);color:#fff;border:none;border-radius:11px;padding:11px;font-size:14.5px;font-weight:800;cursor:pointer;}
+  .exp-total{background:linear-gradient(135deg,var(--coral),#f3996f);color:#fff;border-radius:16px;padding:15px;text-align:center;margin-bottom:13px;}
+  .exp-total .lab{font-size:12.5px;opacity:.95;}
+  .exp-total .num{font-size:28px;font-weight:800;margin-top:2px;}
+  .payer-sum{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-top:10px;}
+  .payer-sum .chip{background:rgba(255,255,255,.25);border-radius:20px;padding:4px 11px;font-size:11.5px;font-weight:700;}
+  .exp-list{background:#fff;border-radius:16px;padding:6px 15px;box-shadow:0 2px 10px rgba(36,49,55,.06);}
+  .exp-row{padding:11px 0;border-top:1px solid var(--line);}
+  .exp-row:first-child{border-top:none;}
+  .exp-head{display:flex;justify-content:space-between;align-items:center;font-size:13.5px;font-weight:600;margin-bottom:7px;}
+  .exp-head .preset{font-size:10px;font-weight:700;color:var(--ok);background:#e7f6ef;padding:1px 6px;border-radius:6px;margin-left:6px;}
+  .cat-tag{display:inline-block;font-size:10px;font-weight:700;padding:1px 7px;border-radius:7px;color:#fff;margin-left:6px;vertical-align:middle;}
+  .catsum-card{background:#fff;border-radius:14px;padding:11px 15px;box-shadow:0 2px 10px rgba(36,49,55,.06);margin-bottom:13px;}
+  .catsum-card .cs-h{font-size:12.5px;font-weight:800;color:var(--ocean-deep);margin-bottom:8px;}
+  .catsum{display:flex;flex-wrap:wrap;gap:7px;}
+  .catsum .cchip{font-size:11.5px;font-weight:700;padding:3px 10px;border-radius:20px;color:#fff;}
+  .catsum .none{font-size:12px;color:var(--muted);font-weight:500;}
+  .owner-sel{flex:0 0 auto;border:1.5px solid var(--line);border-radius:8px;padding:3px 4px;font-size:11.5px;font-family:inherit;background:#fff;color:var(--ink);max-width:74px;}
+  .head-r{display:flex;align-items:center;gap:8px;flex:0 0 auto;}
+  .inv-btn{font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;cursor:pointer;border:1.5px solid var(--line);background:#fff;color:var(--muted);white-space:nowrap;}
+  .inv-btn.on{background:#e7f6ef;color:var(--ok);border-color:#b8e6cf;}
+  .stat3{display:flex;flex-direction:column;gap:9px;margin-bottom:13px;}
+  .statbox{background:#fff;border-radius:14px;padding:13px 16px;box-shadow:0 2px 10px rgba(36,49,55,.06);display:flex;justify-content:space-between;align-items:center;}
+  .statbox .sl{font-size:13px;color:var(--muted);font-weight:600;}
+  .statbox .sv{font-size:20px;font-weight:800;color:var(--ink);}
+  .statbox.ok .sv{color:var(--ok);}
+  .statbox.self .sv{color:var(--coral);}
+  .st-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-top:1px solid var(--line);font-size:13px;}
+  .st-row:first-child{border-top:none;}
+  .st-amt{font-weight:700;color:var(--ocean-deep);flex:0 0 auto;}
+  .st-item{flex:1;}
+  .inv-mini{font-size:10px;font-weight:700;padding:1px 6px;border-radius:6px;background:var(--sand-deep);color:var(--muted);margin-left:4px;}
+  .inv-mini.on{background:#e7f6ef;color:var(--ok);}
+  .day-card{background:#fff;border-radius:16px;padding:4px 15px 8px;box-shadow:0 2px 10px rgba(36,49,55,.06);margin-bottom:12px;}
+  .day-sec-h{display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:800;color:var(--ocean-deep);padding:11px 0 7px;border-bottom:2px solid var(--sand-deep);margin-bottom:2px;}
+  .day-sec-t{color:var(--coral);}
+  .day-empty{font-size:12px;color:var(--muted);padding:12px 2px;text-align:center;}
+  .drag{flex:0 0 auto;color:#c2ccd1;font-size:17px;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;padding-right:9px;}
+  .exp-head .ei{flex:1;}
+  .exp-row.dragging{opacity:.45;}
+  .pie-wrap{display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:center;padding:8px 0 4px;}
+  #stPie{width:128px;height:128px;flex:0 0 auto;}
+  .pie-legend{flex:1;min-width:140px;display:flex;flex-direction:column;gap:7px;}
+  .pie-legend .lg{display:flex;align-items:center;gap:8px;font-size:12.5px;}
+  .pie-legend .lg .dot{width:11px;height:11px;border-radius:3px;flex:0 0 auto;}
+  .pie-legend .lg-n{flex:1;}
+  .pie-legend .lg-a{font-weight:700;color:var(--ocean-deep);}
+  .pcol{border-top:1px solid var(--line);}
+  .pcol:first-child{border-top:none;}
+  .pcol summary{display:flex;align-items:center;padding:11px 0;cursor:pointer;font-size:13.5px;font-weight:700;list-style:none;}
+  .pcol summary::-webkit-details-marker{display:none;}
+  .pcol summary::before{content:'▸';display:inline-block;color:var(--muted);margin-right:8px;font-size:11px;transition:transform .15s;}
+  .pcol[open] summary::before{transform:rotate(90deg);}
+  .pcol .pc-n{flex:1;}
+  .pcol .pc-a{color:var(--coral);font-weight:800;}
+  .pcol .st-row{padding:6px 0 6px 19px;}
+  .pcol .st-row:first-of-type{border-top:1px dashed var(--line);}
+  .exp-edit{display:flex;gap:8px;}
+  .amt-in{flex:1;min-width:0;border:1.5px solid var(--line);border-radius:9px;padding:8px 11px;font-size:14px;font-family:inherit;}
+  .amt-in:focus{outline:none;border-color:var(--teal);}
+  .payer-in{flex:0 0 96px;border:1.5px solid var(--line);border-radius:9px;padding:8px;font-size:13px;font-family:inherit;background:#fff;}
+  .payer-in:focus{outline:none;border-color:var(--teal);}
+  .exp-row .ex{color:#c9d2d6;font-size:19px;cursor:pointer;font-weight:700;line-height:1;padding-left:8px;}
+  .exp-row .ex:active{color:var(--coral);}
+  .fac{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--sand);margin-top:9px;}
+  .fac img{width:100%;height:122px;object-fit:cover;display:block;background:var(--sand-deep);}
+  .fac-b{padding:8px 11px 9px;}
+  .fac-t{font-size:13.5px;font-weight:700;}
+  .fac-m{font-size:11.5px;color:var(--muted);margin-top:2px;}
+  .empty{text-align:center;color:var(--muted);font-size:13px;padding:24px 10px;}
+
+  .reset{display:block;width:100%;margin-top:6px;background:none;border:none;color:var(--coral);font-size:12.5px;font-weight:700;padding:10px;cursor:pointer;}
+  .foot{text-align:center;font-size:11px;color:var(--muted);padding:18px 10px 6px;}
+
+  /* 密碼彈窗 */
+  .modal{position:fixed;inset:0;background:rgba(20,30,35,.55);backdrop-filter:blur(3px);z-index:100;
+    display:none;align-items:center;justify-content:center;padding:24px;}
+  .modal.show{display:flex;}
+  .modal-card{background:#fff;border-radius:18px;padding:20px;max-width:380px;width:100%;max-height:86vh;overflow:auto;animation:pop .2s ease;}
+  @keyframes pop{from{transform:scale(.94);opacity:0}to{transform:none;opacity:1}}
+  .modal-card h3{font-size:16px;font-weight:800;margin-bottom:4px;}
+  .modal-card .mdesc{font-size:12.5px;color:var(--muted);margin-bottom:14px;}
+  .modal-card .pwin{display:flex;gap:8px;}
+  .modal-card .pwin input{flex:1;border:1.5px solid var(--line);border-radius:11px;padding:11px 13px;font-size:16px;font-family:inherit;letter-spacing:2px;}
+  .modal-card .pwin input:focus{outline:none;border-color:var(--teal);}
+  .modal-card .pwin button{background:var(--ocean);color:#fff;border:none;border-radius:11px;padding:0 17px;font-size:14px;font-weight:800;cursor:pointer;}
+  .modal-card .pwerr{color:var(--coral);font-size:12px;font-weight:700;margin-top:8px;display:none;}
+  .modal-card .pwerr.show{display:block;}
+  .modal-card img{width:100%;border-radius:12px;margin-top:6px;display:block;}
+  .modal-card .imgmiss{background:var(--sand);border:1.5px dashed var(--sand-deep);border-radius:12px;padding:26px 16px;text-align:center;font-size:12.5px;color:var(--muted);margin-top:6px;}
+  .modal-close{display:block;width:100%;margin-top:14px;background:var(--sand);border:none;border-radius:11px;padding:11px;font-size:14px;font-weight:700;color:var(--ink);cursor:pointer;}
+
+  nav{position:fixed;bottom:0;left:0;right:0;height:calc(var(--nav-h) + env(safe-area-inset-bottom));
+    padding-bottom:env(safe-area-inset-bottom);background:#fff;border-top:1px solid var(--line);
+    display:flex;max-width:480px;margin:0 auto;box-shadow:0 -2px 16px rgba(36,49,55,.08);z-index:50;}
+  nav button{flex:1;border:none;background:none;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:3px;color:var(--muted);font-size:10.5px;font-weight:700;cursor:pointer;transition:.15s;}
+  nav button .ic{font-size:20px;line-height:1;}
+  nav button.active{color:var(--ocean);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <div class="wave">🌊</div>
+    <h1>花蓮宜蘭・公路旅行</h1>
+    <div class="sub">一家五口 ｜ 自家休旅車環島東部</div>
+    <div class="pills">
+      <span class="pill">📅 10/24–10/27</span>
+      <span class="pill">🚗 全程自駕</span>
+      <span class="pill">👨‍👩‍👧‍👧 5 人 2 房</span>
+    </div>
+  </header>
+
+  <!-- ===== 每日行程 ===== -->
+  <section id="plan" class="page active">
+    <div class="days" id="dayTabs">
+      <button class="day-btn active" data-day="1"><span class="d">Day 1・六</span>10/24</button>
+      <button class="day-btn" data-day="2"><span class="d">Day 2・日</span>10/25</button>
+      <button class="day-btn" data-day="3"><span class="d">Day 3・一</span>10/26</button>
+      <button class="day-btn" data-day="4"><span class="d">Day 4・二</span>10/27</button>
+    </div>
+
+    <div class="day-pane active" data-day="1">
+      <div class="route-bar">🚗 頭份 →（雪隧）→ 羅東 ・約 2.5–3 hr</div>
+      <div class="tl">
+        <div class="ev"><div class="card"><div class="time">09:00</div><div class="title">頭份出發</div><div class="note">國道 3 → 國道 5（雪隧）</div></div></div>
+        <div class="ev"><div class="card"><div class="time">約 11:30</div><div class="title">抵達宜蘭・午餐</div><div class="note">出雪隧後礁溪／羅東在地小吃</div></div></div>
+        <div class="ev"><div class="card">
+          <img class="photo" loading="lazy" alt="羅東林業文化園區" src="https://upload.wikimedia.org/wikipedia/commons/3/35/At_an_Intersection_in_Luodong_Forestry_Culture_Park.jpg" onerror="this.style.display='none'">
+          <div class="time">13:30</div><div class="title">羅東林業文化園區 <span class="tag must">免費</span></div><div class="note">日式貯木池、森林鐵道遺跡，慢走約 1.5 hr</div>
+          <div class="btn-row"><a class="mapbtn" href="https://www.google.com/maps/dir/?api=1&destination=羅東林業文化園區">🧭 導航</a><a class="mapbtn ref" href="https://luodong.forest.gov.tw/0000077">📖 參考</a></div></div></div>
+        <div class="ev"><div class="card">
+          <img class="photo" loading="lazy" alt="梅花湖" src="https://upload.wikimedia.org/wikipedia/commons/6/6b/Looking_down_on_Meihua_Lake.jpg" onerror="this.style.display='none'">
+          <div class="time">15:30</div><div class="title">梅花湖 <span class="tag opt">可選</span></div><div class="note">環湖步道／電動車，悠閒看湖</div>
+          <div class="btn-row"><a class="mapbtn" href="https://www.google.com/maps/dir/?api=1&destination=梅花湖 宜蘭">🧭 導航</a><a class="mapbtn ref" href="https://www.dongshan.gov.tw/">📖 參考</a></div></div></div>
+        <div class="ev"><div class="card">
+          <img class="photo" loading="lazy" alt="山水商務飯店" src="https://cf.bstatic.com/xdata/images/hotel/max1024x768/86236387.jpg?k=4af9134837112904aba1b7eeeb81b1b08237127ec838f671ab1fac84ebcccd14&o=" onerror="this.style.display='none'">
+          <div class="time">15:00 後</div><div class="title">🏨 山水商務飯店 入住</div><div class="note">放行李、休息</div>
+          <div class="btn-row"><a class="mapbtn" href="https://www.google.com/maps/dir/?api=1&destination=山水商務飯店 羅東 和平路75號">🧭 導航</a></div></div></div>
+        <div class="ev"><div class="card">
+          <img class="photo" loading="lazy" alt="羅東夜市" src="https://upload.wikimedia.org/wikipedia/commons/6/6c/2014-01-29_Luodong_Night_Market_01.jpg" onerror="this.style.display='none'">
+          <div class="time">18:30</div><div class="title">羅東夜市 🍢</div><div class="note">包心粉圓、羊肉湯、肉羹番、三星蔥油餅</div>
+          <div class="btn-row"><a class="mapbtn" href="https://www.google.com/maps/dir/?api=1&destination=羅東夜市">🧭 導航</a><a class="mapbtn ref" href="https://www.traveltaiwan.tw/zh-tw/attractions/羅東夜市">📖 參考</a></div></div></div>
+      </div>
+    </div>
+
+    <div class="day-pane" data-day="2">
+      <div class="route-bar">🚗 羅東 →（蘇花改）→ 花蓮 ・約 2.5 hr</div>
+      <div class="tl">
+        <div class="ev"><div class="card"><div class="time">08:30</div><div class="title">羅東出發 → 蘇澳 → 蘇花改</div><div class="note">蘇花改山路約 2 hr，注意行車</div></div></div>
+        <div class="ev"><div class="card">
+          <img class="photo" loading="lazy" alt="南方澳觀景台" src="https://upload.wikimedia.org/wikipedia/commons/2/22/View_over_Port_of_Su%27ao_with_Nanfang%27ao_in_the_distance.jpg" onerror="this.style.display='none'">
+          <div class="time">約 09:30</div><div class="title">南方澳觀景台 <span class="tag opt">可選</span></div><div class="note">俯瞰南方澳漁港，拍照 15 分</div>
+          <div class="btn-row"><a class="mapbtn" href="https://www.google.com/maps/dir/?api=1&destination=南方澳觀景台">🧭 導航</a><a class="mapbtn ref" href="https://www.necoast-nsa.gov.tw/">📖 參考</a></div></div></div>
+        <div class="ev"><div class="card"><div class="time">約 11:30</div><div class="title">抵達花蓮・午餐</div><div class="note">花蓮市在地（扁食、公正包子）</div></div></div>
+        <div class="ev"><div class="card">
+          <img class="photo" loading="lazy" alt="鍾華玉品藝術工坊" src="https://lh3.googleusercontent.com/grass-cs/ANxoTn3o57RmO0lmqjIBvFpRYG-LUVNcpT4HxBJQto8i7WUabCtzibLwGrhJv7H8keDFOVAfnYNQmus5G5fCTzzexRrhbJkqLN1OZpoT64gs872d_WhXgQHeU5YkQvaTH3uDxzuhRxV3LBZtq2Y=s1200" onerror="this.style.display='none'">
+          <div class="time">13:30</div><div class="title">鍾華玉品藝術工坊・磨玉石 DIY <span class="tag opt">時間夠再去</span><span class="tag self">自付</span></div><div class="note">吉安在花蓮市南邊順路 ⚠️ 需先確認預約</div>
+          <div class="btn-row"><a class="mapbtn" href="https://maps.app.goo.gl/pNnYjt1BPZB6WbxC6">🧭 導航・地標</a></div></div></div>
+        <div class="ev"><div class="card">
+          <img class="photo" loading="lazy" alt="七星潭" src="https://upload.wikimedia.org/wikipedia/commons/7/72/Qixingtan_Beach%2C_Taiwan.jpg" onerror="this.style.display='none'">
+          <div class="time">15:30</div><div class="title">七星潭 🌊 <span class="tag must">免費</span></div><div class="note">弧形礫石海灣，看海撿石吹風</div>
+          <div class="btn-row"><a class="mapbtn" href="https://www.google.com/maps/dir/?api=1&destination=七星潭">🧭 導航</a><a class="mapbtn ref" href="https://www.hl-travel.com.tw/">📖 參考</a></div></div></div>
+        <div class="ev"><div class="card">
+          <img class="photo" loading="lazy" alt="原野牧場海景咖啡" src="https://twoslowbyron.com/wp-content/uploads/2023/07/DSC08206-13.jpg" onerror="this.style.display='none'">
+          <div class="time">16:30</div><div class="title">原野牧場 ☕</div><div class="note">七星潭旁，太平洋海景咖啡、羊奶拿鐵</div>
+          <div class="btn-row"><a class="mapbtn" href="https://www.google.com/maps/dir/?api=1&destination=原野牧場 花蓮">🧭 導航</a><a class="mapbtn ref" href="https://twoslowbyron.com/seaside_cafe/">📖 參考</a></div></div></div>
+        <div class="ev"><div class="card">
+          <img class="photo" loading="lazy" alt="家鄉民宿" src="https://cf.bstatic.com/xdata/images/hotel/max1024x768/257603415.jpg?k=3759d360a495eaffb6b7cee4ed6c3f438a22821dff741df72754e6ad5c9342fb&o=" onerror="this.style.display='none'">
+          <div class="time">15:00 後</div><div class="title">🏨 家鄉民宿 入住</div><div class="note">放行李（夜市開車去）</div>
+          <div class="btn-row"><a class="mapbtn" href="https://www.google.com/maps/dir/?api=1&destination=家鄉民宿 花蓮市國興三街97號">🧭 導航</a></div></div></div>
+        <div class="ev"><div class="card">
+          <img class="photo" loading="lazy" alt="東大門夜市" src="https://upload.wikimedia.org/wikipedia/commons/0/08/%E6%9D%B1%E5%A4%A7%E9%96%80%E5%A4%9C%E5%B8%82_%2836162131690%29.jpg" onerror="this.style.display='none'">
+          <div class="time">19:00</div><div class="title">東大門夜市 🍜</div><div class="note">原住民風味＋各地小吃</div>
+          <div class="btn-row"><a class="mapbtn" href="https://www.google.com/maps/dir/?api=1&destination=東大門夜市 花蓮">🧭 導航</a><a class="mapbtn ref" href="https://www.hl-travel.com.tw/">📖 參考</a></div></div></div>
+      </div>
+    </div>
+
+    <div class="day-pane" data-day="3">
+      <div class="route-bar">✈️ 壽豐輕航機 →（蘇花改）→ 礁溪 ・飛完約 3 hr</div>
+      <div class="tl">
+        <div class="ev star"><div class="card"><div class="time">08:00</div><div class="title">出發往壽豐</div><div class="note">花蓮市區 → 日光輕航機場約 30 分</div></div></div>
+        <div class="ev star"><div class="card">
+          <img class="photo" loading="lazy" alt="日光輕航機場" src="https://sunlight-168.com/fimgs/indeximg01.jpg" onerror="this.style.display='none'">
+          <div class="time">08:30</div><div class="title">✈️ 日光輕航機場・開飛機</div><div class="note">飛花東縱谷山海景，5 人都選 10 分鐘版。每次 1 人搭，其他人地面等。<br>📌 子琳懼高：10 分最短版，不想飛就地面陪同拍照</div>
+          <div class="btn-row"><a class="mapbtn" href="https://www.google.com/maps/dir/?api=1&destination=日光輕航機場 壽豐">🧭 導航</a><a class="mapbtn ghost" href="tel:0981246488">📞 預約電話</a><a class="mapbtn ref" href="https://sunlight-168.com/">📖 參考</a></div></div></div>
+        <div class="ev"><div class="card"><div class="time">10:30</div><div class="title">啟程往宜蘭</div><div class="note">壽豐 → 蘇花改 → 礁溪，約 3 hr</div></div></div>
+        <div class="ev"><div class="card"><div class="time">約 12:00</div><div class="title">午餐 🍤</div><div class="note">南方澳／蘇澳海鮮，蘇花改出口附近</div></div></div>
+        <div class="ev"><div class="card">
+          <img class="photo" loading="lazy" alt="葛瑪蘭之星飯店" src="https://star.gamalanhotel.com/wp-content/uploads/2023/04/IMG_0124-1-scaled.jpg" onerror="this.style.display='none'">
+          <div class="time">15:30</div><div class="title">🏨 葛瑪蘭之星 入住</div><div class="note">早點進房，先休息／泡個湯</div>
+          <div class="btn-row"><a class="mapbtn" href="https://www.google.com/maps/dir/?api=1&destination=葛瑪蘭之星飯店 礁溪">🧭 導航</a><a class="mapbtn ref" href="https://star.gamalanhotel.com/">📖 參考</a></div></div></div>
+        <div class="ev star"><div class="card">
+          <img class="photo" loading="lazy" alt="星苑餐廳自助餐" src="https://star.gamalanhotel.com/wp-content/uploads/2023/10/IMG_5538-900x600.jpg" onerror="this.style.display='none'">
+          <div class="time">17:00</div><div class="title">🍽️ 星苑餐廳 自助餐 <span class="tag must">已訂</span></div><div class="note">飯店住客 NT$780／人・5 位大人。可加入行事曆／線上改訂位（用餐日 15:00 前）</div>
+          <div class="btn-row"><a class="mapbtn ref" href="https://hamilton29.pixnet.net/blog/posts/4045656780">📝 自助餐食記</a><a class="mapbtn ghost" href="https://star.gamalanhotel.com/portfolio/星苑餐廳/">🍴 餐廳官網</a></div></div></div>
+        <div class="ev"><div class="card"><div class="time">19:00 後</div><div class="title">♨️ 飯店設施・泡湯放鬆</div><div class="note">開一整天車的最佳解勞，以下設施住客免費用到飽：</div>
+          <div class="fac"><img loading="lazy" alt="房內私人溫泉池" src="https://star.gamalanhotel.com/wp-content/uploads/2023/10/IMG_1733-1000x600.jpg" onerror="this.style.display='none'"><div class="fac-b"><div class="fac-t">🛁 房內私人溫泉池</div><div class="fac-m">在房內就能泡礁溪美人湯，最方便</div></div></div>
+          <div class="fac"><img loading="lazy" alt="露天溫泉" src="https://star.gamalanhotel.com/wp-content/uploads/2023/04/IMG_1500-1000x600.jpg" onerror="this.style.display='none'"><div class="fac-b"><div class="fac-t">♨️ 露天溫泉（R 樓）</div><div class="fac-m">頂樓環景大眾池・維琪浴・蒸氣室・烤箱｜08:00–11:30、14:30–21:30（最後入場 21:00）｜需泳衣泳帽</div></div></div>
+          <div class="fac"><img loading="lazy" alt="戶外泡腳池" src="https://star.gamalanhotel.com/wp-content/uploads/2023/05/1%E8%91%9B%E7%91%AA%E8%98%AD%E6%88%B6%E5%A4%96%E6%B3%A1%E8%85%B31-1000x600.jpg" onerror="this.style.display='none'"><div class="fac-b"><div class="fac-t">🐟 戶外泡腳池（2 樓）</div><div class="fac-m">小魚咬腳＋蘇卡達象龜互動｜08:00–21:30</div></div></div>
+          <div class="fac"><img loading="lazy" alt="健身俱樂部" src="https://star.gamalanhotel.com/wp-content/uploads/2023/04/IMG_1200-1000x600.jpg" onerror="this.style.display='none'"><div class="fac-b"><div class="fac-t">🏋️ 健身俱樂部（2 樓）</div><div class="fac-m">齊全運動器材｜08:00–21:30（最後入場 21:00）</div></div></div>
+          <div class="fac"><img loading="lazy" alt="讀書閱覽室" src="https://star.gamalanhotel.com/wp-content/uploads/2023/04/IMG_1313-1000x600.jpg" onerror="this.style.display='none'"><div class="fac-b"><div class="fac-t">📚 讀書閱覽室（2 樓）</div><div class="fac-m">植栽書香閱覽空間｜08:00–21:30</div></div></div>
+          <div class="btn-row"><a class="mapbtn ref" href="https://star.gamalanhotel.com/設施服務/">📖 設施介紹</a></div></div></div>
+      </div>
+    </div>
+
+    <div class="day-pane" data-day="4">
+      <div class="route-bar">🚗 礁溪 →（雪隧）→ 頭份 ・約 2.5 hr</div>
+      <div class="tl">
+        <div class="ev"><div class="card">
+          <img class="photo" loading="lazy" alt="葛瑪蘭之星早餐" src="https://star.gamalanhotel.com/wp-content/uploads/2023/03/241125%E4%B9%8B%E6%98%9F%E8%8F%9C%E5%96%AE-inline%E7%94%A8_02-1.png" onerror="this.style.display='none'">
+          <div class="time">08:00</div><div class="title">晨湯 ＋ 飯店早餐 🍳</div><div class="note">退房前先泡個晨湯，再到星苑餐廳吃早餐</div></div></div>
+        <div class="ev"><div class="card"><div class="time">11:00</div><div class="title">飯店退房</div></div></div>
+        <div class="ev"><div class="card">
+          <img class="photo" loading="lazy" alt="湯圍溝溫泉公園" src="https://upload.wikimedia.org/wikipedia/commons/d/dc/%E6%B9%AF%E5%9C%8D%E6%BA%9D%E6%99%AF%E8%A7%80%E6%B1%A0.jpg" onerror="this.style.display='none'">
+          <div class="time">11:15</div><div class="title">湯圍溝溫泉公園 散步／足湯</div><div class="note">退房後到礁溪市區輕鬆走走、泡個免費足湯</div>
+          <div class="btn-row"><a class="mapbtn" href="https://www.google.com/maps/dir/?api=1&destination=湯圍溝溫泉公園">🧭 導航</a><a class="mapbtn ref" href="https://www.jiauci.gov.tw/">📖 參考</a></div></div></div>
+        <div class="ev"><div class="card"><div class="time">12:00</div><div class="title">礁溪午餐 ＋ 採買 🛍️</div><div class="note">礁溪在地午餐；蔥油餅、宜蘭餅、鴨賞（伴手禮自付）</div></div></div>
+        <div class="ev"><div class="card"><div class="time">13:30</div><div class="title">啟程回家</div><div class="note">礁溪 → 雪隧 → 國道 5 → 國道 3 → 頭份</div></div></div>
+        <div class="ev"><div class="card"><div class="time">約 16:00</div><div class="title">抵達頭份・到家 🏡</div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 交通 ===== -->
+  <section id="trans" class="page">
+    <div class="page-title">🚗 交通 <small>全程約 640 km・自駕</small></div>
+    <div class="warn">⚠️ <b>蘇花改提醒</b>：Day 2、Day 3 都走台 9 線蘇花改，山路彎多、隧道長。建議白天行駛、爸爸中途換手休息，子琳備暈車藥。蘇花改全線免費。</div>
+    <div class="seg"><div class="head">① 頭份 → 羅東</div>
+      <div class="seg-map" data-route="S1" data-fl="頭份" data-tl="羅東"></div>
+      <div class="grid"><div class="cell"><div class="lab">路線</div><div class="num">國道3→5 雪隧</div></div><div class="cell"><div class="lab">距離</div><div class="num">約 130 km</div></div><div class="cell"><div class="lab">車程</div><div class="num">2.5–3 hr</div></div><div class="cell"><div class="lab">過路+油</div><div class="num">約 700</div></div></div></div>
+    <div class="seg"><div class="head">② 羅東 → 花蓮</div>
+      <div class="seg-map" data-route="S2" data-fl="羅東" data-tl="花蓮"></div>
+      <div class="grid"><div class="cell"><div class="lab">路線</div><div class="num">蘇花改（免費）</div></div><div class="cell"><div class="lab">距離</div><div class="num">約 120 km</div></div><div class="cell"><div class="lab">車程</div><div class="num">約 2.5 hr</div></div><div class="cell"><div class="lab">油錢</div><div class="num">約 450</div></div></div></div>
+    <div class="seg"><div class="head">③ 壽豐 → 礁溪</div>
+      <div class="seg-map" data-route="S3" data-fl="壽豐" data-tl="礁溪"></div>
+      <div class="grid"><div class="cell"><div class="lab">路線</div><div class="num">蘇花改（免費）</div></div><div class="cell"><div class="lab">距離</div><div class="num">約 150 km</div></div><div class="cell"><div class="lab">車程</div><div class="num">約 3 hr</div></div><div class="cell"><div class="lab">油錢</div><div class="num">約 550</div></div></div></div>
+    <div class="seg"><div class="head">④ 礁溪 → 頭份</div>
+      <div class="seg-map" data-route="S4" data-fl="礁溪" data-tl="頭份"></div>
+      <div class="grid"><div class="cell"><div class="lab">路線</div><div class="num">雪隧→國道5→3</div></div><div class="cell"><div class="lab">距離</div><div class="num">約 140 km</div></div><div class="cell"><div class="lab">車程</div><div class="num">約 2.5 hr</div></div><div class="cell"><div class="lab">過路+油</div><div class="num">約 780</div></div></div></div>
+    <div class="warn">⛽ 出發前加滿油；花蓮、蘇花改沿線加油站較少，<b>過蘇澳前先補油</b>。出發前確認 ETC 餘額。</div>
+    <div class="map-credit">地圖資料 © OpenStreetMap、CARTO</div>
+  </section>
+
+  <!-- ===== 住宿 ===== -->
+  <section id="stay" class="page">
+    <div class="page-title">🏨 住宿 <small>3 晚・每晚 2 房（爸媽／三姐妹）</small></div>
+
+    <div class="block">
+      <img class="photo" loading="lazy" alt="山水商務飯店" src="https://cf.bstatic.com/xdata/images/hotel/max1024x768/86236387.jpg?k=4af9134837112904aba1b7eeeb81b1b08237127ec838f671ab1fac84ebcccd14&o=" onerror="this.style.display='none'">
+      <h3>① 山水商務飯店 <span class="badge">Day 1</span></h3>
+      <div class="addr">📍 羅東鎮和平路 75 號</div>
+      <div class="kv"><span class="k">房型</span><span class="v">標準雙人房＋四人房</span></div>
+      <div class="kv"><span class="k">早餐／停車</span><span class="v">含早餐 ・ 免費停車</span></div>
+      <div class="kv"><span class="k">入住／退房</span><span class="v">15:00 ／ 11:00</span></div>
+      <div class="kv"><span class="k">價格</span><span class="v">NT$6,120</span></div>
+      <div class="btn-row" style="margin-top:11px;"><a class="mapbtn" href="https://www.google.com/maps/dir/?api=1&destination=山水商務飯店 羅東 和平路75號">🧭 導航</a><a class="mapbtn ghost" href="tel:0939568755">📞 03-956-8755</a></div>
+      <div class="btn-row"><button class="mapbtn lock" onclick="openBooking('sunsweet','山水商務飯店')">🔒 查看訂房資訊（需密碼）</button></div>
+    </div>
+
+    <div class="block">
+      <img class="photo" loading="lazy" alt="家鄉民宿" src="https://cf.bstatic.com/xdata/images/hotel/max1024x768/257603415.jpg?k=3759d360a495eaffb6b7cee4ed6c3f438a22821dff741df72754e6ad5c9342fb&o=" onerror="this.style.display='none'">
+      <h3>② 家鄉民宿 <span class="badge">Day 2</span></h3>
+      <div class="addr">📍 花蓮市國興三街 97 號 ・ 限滿 18 歲入住</div>
+      <div class="kv"><span class="k">房型</span><span class="v">高級雙人房＋四人房附淋浴</span></div>
+      <div class="kv"><span class="k">早餐／停車</span><span class="v">不含早餐 ・ 免費停車(需約)</span></div>
+      <div class="kv"><span class="k">入住／退房</span><span class="v">15:00 ／ 11:00</span></div>
+      <div class="kv"><span class="k">價格</span><span class="v">NT$3,800</span></div>
+      <div class="btn-row" style="margin-top:11px;"><a class="mapbtn" href="https://www.google.com/maps/dir/?api=1&destination=家鄉民宿 花蓮市國興三街97號">🧭 導航</a><a class="mapbtn ghost" href="tel:0933994561">📞 0933-994-561</a></div>
+      <div class="btn-row"><button class="mapbtn lock" onclick="openBooking('jiaxiang','家鄉民宿')">🔒 查看訂房資訊（需密碼）</button></div>
+    </div>
+
+    <div class="block">
+      <img class="photo" loading="lazy" alt="葛瑪蘭之星飯店" src="https://star.gamalanhotel.com/wp-content/uploads/2023/04/IMG_0124-1-scaled.jpg" onerror="this.style.display='none'">
+      <h3>③ 葛瑪蘭之星飯店 <span class="badge">Day 3</span></h3>
+      <div class="addr">📍 礁溪鄉礁溪路五段 118 號 ・ 房內溫泉池</div>
+      <div class="kv"><span class="k">房型</span><span class="v">經典雙床房＋日式四人房</span></div>
+      <div class="kv"><span class="k">早餐／停車</span><span class="v">含早餐 ・ 免費停車(需約)</span></div>
+      <div class="kv"><span class="k">入住／退房</span><span class="v">15:30 ／ 11:00</span></div>
+      <div class="kv"><span class="k">價格</span><span class="v">NT$15,504</span></div>
+      <div class="btn-row" style="margin-top:11px;"><a class="mapbtn" href="https://www.google.com/maps/dir/?api=1&destination=葛瑪蘭之星飯店 礁溪">🧭 導航</a><a class="mapbtn ghost" href="tel:0399880850">📞 03-988-0850</a></div>
+      <div class="btn-row"><button class="mapbtn lock" onclick="openBooking('gamalan','葛瑪蘭之星飯店')">🔒 查看訂房資訊（需密碼）</button></div>
+    </div>
+  </section>
+
+  <!-- ===== 準備（行李＋待辦） ===== -->
+  <section id="prep" class="page">
+    <div class="page-title">🧳 準備 <small>待辦＋每人行李清單</small></div>
+    <div class="sec-card" id="todoCard">
+      <div class="gh">📋 出發前待辦事項</div>
+      <div id="todoBox"></div>
+    </div>
+    <div class="overview" id="overview">
+      <div class="oh">📊 全家行李準備進度</div>
+      <div id="overviewBox"></div>
+    </div>
+    <div class="ppl" id="pplTabs"></div>
+    <div id="personBox"></div>
+    <button class="reset" id="resetPrep">↺ 全部重設準備清單</button>
+  </section>
+
+  <!-- ===== 花費（預算＋記帳） ===== -->
+  <section id="spend" class="page">
+    <div class="page-title">💰 花費 <small>預算估算＋實際記帳</small></div>
+    <div class="toggle">
+      <button class="active" data-view="budget">預算估算</button>
+      <button data-view="ledger">實際記帳</button>
+      <button data-view="stats">支出統計</button>
+    </div>
+
+    <!-- 預算估算 -->
+    <div class="spend-view active" id="view-budget">
+      <div class="bud-total"><div class="lab">補助核銷總計（估）</div><div class="num">約 NT$55,300</div><div class="cap">目標 5 萬用滿・上限 6 萬 ✅ 安全</div></div>
+      <div class="block">
+        <div class="brow"><span>Day1 山水商務飯店 <span class="ok">已訂</span></span><span class="amt">6,120</span></div>
+        <div class="brow"><span>Day2 家鄉民宿 <span class="ok">已訂</span></span><span class="amt">3,800</span></div>
+        <div class="brow"><span>Day3 葛瑪蘭之星 <span class="ok">已訂</span></span><span class="amt">15,504</span></div>
+        <div class="brow"><span>輕航機 5人×10分 <span class="est">待預約</span></span><span class="amt">10,000</span></div>
+        <div class="brow"><span>Day3 星苑自助餐 <span class="ok">已訂</span></span><span class="amt">4,290</span></div>
+        <div class="brow"><span>其餘餐食 <span class="est">估</span></span><span class="amt">9,500</span></div>
+        <div class="brow"><span>油＋過路＋停車 <span class="est">估</span></span><span class="amt">4,100</span></div>
+        <div class="brow"><span>門票雜支 <span class="est">估</span></span><span class="amt">2,000</span></div>
+        <div class="brow"><span><b>核銷總計</b></span><span class="amt"><b>≈ 55,300</b></span></div>
+      </div>
+      <div class="warn" style="margin-top:13px;">🧾 所有發票收據都留好。實際花了多少，到「實際記帳」分頁記錄 →</div>
+    </div>
+
+    <!-- 實際記帳 -->
+    <div class="spend-view" id="view-ledger">
+      <div class="exp-total"><div class="lab">目前實際總支出</div><div class="num" id="expTotal">NT$0</div>
+        <div class="payer-sum" id="payerSum"></div></div>
+      <div class="exp-form">
+        <div class="fr"><input class="i-item" id="expItem" type="text" placeholder="新增花費項目，如：羅東夜市晚餐"></div>
+        <div class="fr"><select class="i-payer" id="expDay" style="flex:1;"></select><select class="i-payer" id="expCat" style="flex:1;"></select></div>
+        <button class="addbtn" id="expAdd">＋ 新增花費</button>
+      </div>
+      <div class="warn" style="margin-bottom:13px;">💡 花費按「第幾天」分區，有固定金額的已先列好。拖曳左側 ≡ 可調整卡片順序，甚至拖到別天。</div>
+      <div id="expList"></div>
+    </div>
+
+    <!-- 支出統計 -->
+    <div class="spend-view" id="view-stats">
+      <div class="stat3">
+        <div class="statbox"><span class="sl">總支出</span><span class="sv" id="stTotal">NT$0</span></div>
+        <div class="statbox ok"><span class="sl">可報補助（有發票）</span><span class="sv" id="stReimb">NT$0</span></div>
+        <div class="statbox self"><span class="sl">自己付（無發票）</span><span class="sv" id="stSelf">NT$0</span></div>
+      </div>
+      <div class="warn" id="stCapNote" style="display:none;">⚠️ 有發票金額已超過公司補助上限約 6 萬，超出部分要自己付。</div>
+      <div class="catsum-card"><div class="cs-h">📅 各天花費</div><div id="stDay"></div></div>
+      <div class="catsum-card"><div class="cs-h">📊 各分類花費</div>
+        <div class="pie-wrap"><svg id="stPie" viewBox="0 0 120 120"></svg><div class="pie-legend" id="stCatLegend"></div></div>
+      </div>
+      <div class="catsum-card"><div class="cs-h">👥 各人支出統計 <small style="font-size:11px;font-weight:500;color:var(--muted);">點開看明細</small></div><div id="stPayer"></div></div>
+      <div class="catsum-card"><div class="cs-h">🧾 可報補助明細（有發票）</div><div id="stReimbList"></div></div>
+    </div>
+  </section>
+
+  <div class="foot">花蓮宜蘭公路旅行 ・ 2026/10/24–27 ・ 一家五口 🚗💨</div>
+</div>
+
+<!-- 密碼彈窗 -->
+<div class="modal" id="modal">
+  <div class="modal-card">
+    <h3 id="mTitle">訂房資訊</h3>
+    <div class="mdesc" id="mDesc">輸入密碼以查看訂房確認單</div>
+    <div id="mPwArea">
+      <div class="pwin"><input id="mPw" type="password" inputmode="numeric" placeholder="請輸入密碼"><button id="mPwBtn">查看</button></div>
+      <div class="pwerr" id="mPwErr">密碼不對，再試一次</div>
+    </div>
+    <div id="mImgArea"></div>
+    <button class="modal-close" id="mClose">關閉</button>
+  </div>
+</div>
+
+<nav id="nav">
+  <button class="active" data-tab="plan"><span class="ic">🗺️</span>行程</button>
+  <button data-tab="trans"><span class="ic">🚗</span>交通</button>
+  <button data-tab="stay"><span class="ic">🏨</span>住宿</button>
+  <button data-tab="prep"><span class="ic">🧳</span>準備</button>
+  <button data-tab="spend"><span class="ic">💰</span>花費</button>
+</nav>
+
+<script>
+  /* ---------- 小工具 ---------- */
+  const $=s=>document.querySelector(s);
+  const load=(k,def)=>{try{const v=JSON.parse(localStorage.getItem(k));return v==null?def:v;}catch(e){return def;}};
+  const save=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+  const tick='<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 6"/></svg>';
+
+  /* ---------- 底部導航 ---------- */
+  document.querySelectorAll('#nav button').forEach(b=>{
+    b.addEventListener('click',()=>{
+      document.querySelectorAll('#nav button').forEach(x=>x.classList.remove('active'));
+      document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+      b.classList.add('active');
+      $('#'+b.dataset.tab).classList.add('active');
+      if(b.dataset.tab==='trans')setTimeout(buildSegMaps,60);
+      window.scrollTo({top:0,behavior:'smooth'});
+    });
+  });
+  /* 每日切換 */
+  document.querySelectorAll('#dayTabs .day-btn').forEach(b=>{
+    b.addEventListener('click',()=>{
+      document.querySelectorAll('#dayTabs .day-btn').forEach(x=>x.classList.remove('active'));
+      document.querySelectorAll('.day-pane').forEach(p=>p.classList.remove('active'));
+      b.classList.add('active');
+      document.querySelector('.day-pane[data-day="'+b.dataset.day+'"]').classList.add('active');
+    });
+  });
+
+  /* ====================================================
+     準備：出發前待辦 + 五人行李 + 爸爸核銷
+     ==================================================== */
+  const PEOPLE=["爸","媽","子晴","子琳","子涵"];
+  const DEF_TODO=["跟爸爸要公司統編＋發票特殊規格（核銷用，出發前先給晴天）","預約日光輕航機（確認 5 人體重 ≤ 90kg）","確認玉石 DIY 是否需預約","車子加滿油、確認 ETC 餘額","確認車險（強制險＋第三人責任險）有效","下載離線地圖（蘇花改收訊弱）","出發前一天跟輕航機確認天候","存好 3 張訂房確認單截圖"];
+  const DEF_ITEMS=["衣物（依天數）","盥洗用品／牙刷","泳衣・泡湯換洗衣物","薄外套（日夜溫差）","防曬・帽子・太陽眼鏡","個人常備藥","充電線・行動電源","暈車藥（蘇花改）","好穿的鞋（輕航機用）"];
+
+  function seedList(arr){return arr.map(t=>({t:t,d:false,who:'—'}));}
+  const OWNERS=["—","爸","媽","子晴","子琳","子涵"];
+  function ownerOpts(sel){return OWNERS.map(o=>'<option'+(o===(sel||'—')?' selected':'')+'>'+o+'</option>').join('');}
+  function ownerRank(w){return (!w||w==='—')?99:OWNERS.indexOf(w);}
+  /* 資料：待辦 / 各人清單 / 核銷 */
+  let TODO=load('hl_todo',null);   if(!TODO){TODO=seedList(DEF_TODO);save('hl_todo',TODO);}
+  let PERSON=load('hl_person',null);
+  if(!PERSON){PERSON={};}
+  PEOPLE.forEach(p=>{if(!PERSON[p])PERSON[p]=seedList(DEF_ITEMS);});
+  save('hl_person',PERSON);
+  let activePerson=PEOPLE[0];
+
+  function renderChecklist(list, storeKey, mountSelector, addPlaceholder, owner){
+    const box=$(mountSelector);
+    let h='';
+    list.forEach((it,i)=>{
+      const ownerSel = owner ? '<select class="owner-sel" data-act="owner">'+ownerOpts(it.who)+'</select>' : '';
+      h+='<div class="chk '+(it.d?'done':'')+'" data-i="'+i+'"><span class="cbx" data-act="toggle">'+tick+'</span><span class="lab" contenteditable="true" spellcheck="false">'+escapeHtml(it.t)+'</span>'+ownerSel+'<span class="del" data-act="del">×</span></div>';
+    });
+    h+='<div class="additem"><input type="text" placeholder="'+addPlaceholder+'"><button>＋</button></div>';
+    box.innerHTML=h;
+    box.querySelectorAll('.chk').forEach(row=>{
+      const i=+row.dataset.i;
+      row.querySelector('[data-act="toggle"]').onclick=()=>{list[i].d=!list[i].d;save(storeKey,storeRef(storeKey));renderActivePrep();};
+      const lab=row.querySelector('.lab');
+      lab.addEventListener('blur',()=>{const v=lab.textContent.trim();if(v){list[i].t=v;}else{lab.textContent=list[i].t;}save(storeKey,storeRef(storeKey));});
+      lab.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();lab.blur();}});
+      row.querySelector('[data-act="del"]').onclick=()=>{list.splice(i,1);save(storeKey,storeRef(storeKey));renderActivePrep();};
+      const os=row.querySelector('[data-act="owner"]');
+      if(os) os.onchange=()=>{list[i].who=os.value;save(storeKey,storeRef(storeKey));renderActivePrep();};
+    });
+    const inp=box.querySelector('.additem input'), btn=box.querySelector('.additem button');
+    const add=()=>{const v=inp.value.trim();if(!v)return;list.push({t:v,d:false,who:'—'});save(storeKey,storeRef(storeKey));renderActivePrep();};
+    btn.onclick=add;
+    inp.addEventListener('keydown',e=>{if(e.key==='Enter')add();});
+  }
+  /* storeRef：把目前記憶體中的 list 對回要存的物件 */
+  function storeRef(k){ if(k==='hl_todo')return TODO; if(k==='hl_person')return PERSON; }
+
+  function escapeHtml(s){return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+  function renderOverview(){
+    let h='';
+    PEOPLE.forEach(p=>{
+      const list=PERSON[p], done=list.filter(x=>x.d).length, tot=list.length;
+      const pct=tot?Math.round(done/tot*100):0;
+      h+='<div class="ovr"><span class="nm">'+p+'</span><span class="bar"><i style="width:'+pct+'%"></i></span><span class="pct">'+done+'/'+tot+'</span></div>';
+    });
+    $('#overviewBox').innerHTML=h;
+  }
+  function renderPersonTabs(){
+    let h='';
+    PEOPLE.forEach(p=>{
+      const list=PERSON[p], done=list.filter(x=>x.d).length;
+      h+='<button class="ppl-btn '+(p===activePerson?'active':'')+'" data-p="'+p+'">'+p+'<span class="mini">'+done+'/'+list.length+'</span></button>';
+    });
+    const tabs=$('#pplTabs'); tabs.innerHTML=h;
+    tabs.querySelectorAll('.ppl-btn').forEach(b=>b.onclick=()=>{activePerson=b.dataset.p;renderActivePrep();});
+  }
+  function renderPersonPane(){
+    $('#personBox').innerHTML='<div class="sec-card"><div class="gh">🎒 '+activePerson+' 的行李</div><div id="personItems"></div></div>';
+    renderChecklist(PERSON[activePerson],'hl_person','#personItems',activePerson+' 想加的東西…');
+  }
+  function renderActivePrep(){
+    TODO.sort((a,b)=>ownerRank(a.who)-ownerRank(b.who));
+    save('hl_todo',TODO);
+    renderChecklist(TODO,'hl_todo','#todoBox','新增出發前待辦…',true);
+    renderOverview();
+    renderPersonTabs();
+    renderPersonPane();
+  }
+  renderActivePrep();
+
+  $('#resetPrep').onclick=()=>{
+    if(!confirm('確定要把所有準備清單重設成預設值嗎？（自己加的項目也會清掉）'))return;
+    localStorage.removeItem('hl_todo');localStorage.removeItem('hl_person');
+    TODO=seedList(DEF_TODO);PERSON={};PEOPLE.forEach(p=>PERSON[p]=seedList(DEF_ITEMS));
+    save('hl_todo',TODO);save('hl_person',PERSON);
+    activePerson=PEOPLE[0];renderActivePrep();
+  };
+
+  /* ====================================================
+     花費：預算 / 記帳 切換
+     ==================================================== */
+  document.querySelectorAll('.toggle button').forEach(b=>{
+    b.onclick=()=>{
+      document.querySelectorAll('.toggle button').forEach(x=>x.classList.remove('active'));
+      document.querySelectorAll('.spend-view').forEach(v=>v.classList.remove('active'));
+      b.classList.add('active');
+      $('#view-'+b.dataset.view).classList.add('active');
+    };
+  });
+
+  /* 記帳 */
+  const PAYERS=["—","爸","媽","子晴","子琳","子涵","其他"];
+  const CATS=["住宿","餐食","交通","體驗","伴手禮"];
+  const CAT_COLOR={"住宿":"#0a6e8a","餐食":"#ef7d5a","交通":"#13a4c4","體驗":"#e0a93c","伴手禮":"#2fa872"};
+  /* 預設只留「固定金額」項目，依旅遊順序＋天數排 */
+  const DAYS_META=[{d:1,label:"Day 1・10/24"},{d:2,label:"Day 2・10/25"},{d:3,label:"Day 3・10/26"},{d:4,label:"Day 4・10/27"}];
+  const EXP_SEED=[
+    {item:"住宿・山水商務（羅東）",amt:6120,cat:"住宿",day:1},
+    {item:"住宿・家鄉民宿（花蓮）",amt:3800,cat:"住宿",day:2},
+    {item:"輕航機（5人×10分）",amt:10000,cat:"體驗",day:3},
+    {item:"住宿・葛瑪蘭之星（礁溪）",amt:15504,cat:"住宿",day:3},
+    {item:"Day3 星苑自助餐",amt:4290,cat:"餐食",day:3}
+  ];
+  let _eid=0;
+  const newId=()=>'e'+performance.now().toString().replace('.','')+'_'+(_eid++);
+  let EXP=load('hl_exp4',null);
+  if(!EXP){EXP=EXP_SEED.map(s=>({id:newId(),item:s.item,amt:s.amt,payer:"—",cat:s.cat,day:s.day,inv:true,preset:true}));save('hl_exp4',EXP);}
+  const money=n=>'NT$'+Number(n||0).toLocaleString('en-US');
+  const payerOpts=sel=>PAYERS.map(p=>'<option'+(p===sel?' selected':'')+'>'+p+'</option>').join('');
+  $('#expCat').innerHTML=CATS.map(c=>'<option>'+c+'</option>').join('');
+  $('#expDay').innerHTML=DAYS_META.map(d=>'<option value="'+d.d+'">'+d.label+'</option>').join('');
+
+  function catTag(c){return c?'<span class="cat-tag" style="background:'+(CAT_COLOR[c]||'#889')+'">'+c+'</span>':'';}
+  function rowHtml(e){return '<div class="exp-row" data-id="'+e.id+'"><div class="exp-head"><span class="drag" data-act="drag">≡</span><span class="ei">'+escapeHtml(e.item)+catTag(e.cat)+'</span><span class="head-r"><span class="inv-btn '+(e.inv?'on':'')+'" data-act="inv">'+(e.inv?'🧾 有發票':'🧾 無發票')+'</span><span class="ex" data-act="del">×</span></span></div><div class="exp-edit"><input class="amt-in" type="number" inputmode="numeric" placeholder="金額" value="'+(e.amt?e.amt:'')+'"><select class="payer-in">'+payerOpts(e.payer)+'</select></div></div>';}
+
+  function renderExp(){
+    const list=$('#expList');
+    let h='';
+    DAYS_META.forEach(dm=>{
+      const rows=EXP.filter(e=>e.day===dm.d);
+      const dayTotal=rows.reduce((s,e)=>s+Number(e.amt||0),0);
+      h+='<div class="day-card" data-day="'+dm.d+'"><div class="day-sec-h"><span>'+dm.label+'</span><span class="day-sec-t">'+money(dayTotal)+'</span></div>';
+      h+= rows.length ? rows.map(rowHtml).join('') : '<div class="day-empty">這天還沒有花費</div>';
+      h+='</div>';
+    });
+    list.innerHTML=h;
+    list.querySelectorAll('.exp-row').forEach(r=>{
+      const id=r.dataset.id, e=EXP.find(x=>x.id===id);
+      r.querySelector('.amt-in').addEventListener('input',ev=>{e.amt=parseFloat(ev.target.value)||0;save('hl_exp4',EXP);recalc();updateDayTotals();});
+      r.querySelector('.payer-in').addEventListener('change',ev=>{e.payer=ev.target.value;save('hl_exp4',EXP);recalc();});
+      r.querySelector('[data-act="inv"]').onclick=()=>{e.inv=!e.inv;save('hl_exp4',EXP);renderExp();};
+      r.querySelector('[data-act="del"]').onclick=()=>{EXP=EXP.filter(x=>x.id!==id);save('hl_exp4',EXP);renderExp();};
+    });
+    recalc();
+  }
+  function updateDayTotals(){
+    const cards=$('#expList').querySelectorAll('.day-card');
+    DAYS_META.forEach((dm,idx)=>{
+      const t=EXP.filter(e=>e.day===dm.d).reduce((s,e)=>s+Number(e.amt||0),0);
+      const el=cards[idx]&&cards[idx].querySelector('.day-sec-t'); if(el)el.textContent=money(t);
+    });
+  }
+  function recalc(){
+    const total=EXP.reduce((s,e)=>s+Number(e.amt||0),0);
+    $('#expTotal').textContent=money(total);
+    const byP={};EXP.forEach(e=>{if(e.payer&&e.payer!=='—'&&e.amt>0)byP[e.payer]=(byP[e.payer]||0)+Number(e.amt);});
+    $('#payerSum').innerHTML=Object.keys(byP).map(p=>'<span class="chip">'+p+' '+money(byP[p])+'</span>').join('');
+    renderStats();
+  }
+  function renderStats(){
+    const total=EXP.reduce((s,e)=>s+Number(e.amt||0),0);
+    const reimb=EXP.filter(e=>e.inv).reduce((s,e)=>s+Number(e.amt||0),0);
+    $('#stTotal').textContent=money(total);
+    $('#stReimb').textContent=money(reimb);
+    $('#stSelf').textContent=money(total-reimb);
+    $('#stCapNote').style.display = reimb>60000?'block':'none';
+    let dh='';DAYS_META.forEach(dm=>{const t=EXP.filter(e=>e.day===dm.d).reduce((s,e)=>s+Number(e.amt||0),0);dh+='<div class="st-row"><span class="st-item">'+dm.label+'</span><span class="st-amt">'+money(t)+'</span></div>';});
+    $('#stDay').innerHTML=dh;
+    const byC={};EXP.forEach(e=>{if(e.cat&&e.amt>0)byC[e.cat]=(byC[e.cat]||0)+Number(e.amt);});
+    renderPie(byC);
+    const inv=EXP.filter(e=>e.inv&&e.amt>0);
+    $('#stReimbList').innerHTML=inv.length?inv.map(e=>'<div class="st-row"><span class="st-item">'+escapeHtml(e.item)+catTag(e.cat)+'</span><span class="st-amt">'+money(e.amt)+'</span></div>').join(''):'<div class="day-empty">還沒有有發票的項目</div>';
+    const openSet=new Set([...document.querySelectorAll('#stPayer details[open]')].map(d=>d.dataset.p));
+    let ph='';
+    PAYERS.filter(p=>p!=='—').forEach(p=>{
+      const its=EXP.filter(e=>e.payer===p&&e.amt>0);
+      if(!its.length)return;
+      const sum=its.reduce((s,e)=>s+Number(e.amt),0);
+      ph+='<details class="pcol" data-p="'+p+'"'+(openSet.has(p)?' open':'')+'><summary><span class="pc-n">'+p+'</span><span class="pc-a">'+money(sum)+'</span></summary>'+its.map(e=>'<div class="st-row"><span class="st-item">'+escapeHtml(e.item)+catTag(e.cat)+'</span><span class="st-amt">'+money(e.amt)+'</span></div>').join('')+'</details>';
+    });
+    $('#stPayer').innerHTML=ph||'<div class="day-empty">還沒有花費（記帳時選付款人就會統計）</div>';
+  }
+  function renderPie(byC){
+    const cats=CATS.filter(c=>byC[c]>0);
+    const total=cats.reduce((s,c)=>s+byC[c],0);
+    const svg=$('#stPie'), C=2*Math.PI*45;
+    if(!total){svg.innerHTML='<circle cx="60" cy="60" r="45" fill="none" stroke="#ecdfc8" stroke-width="22"/>';$('#stCatLegend').innerHTML='<div class="day-empty">還沒有花費</div>';return;}
+    let off=0,parts='';
+    cats.forEach(c=>{const len=byC[c]/total*C;parts+='<circle cx="60" cy="60" r="45" fill="none" stroke="'+CAT_COLOR[c]+'" stroke-width="22" stroke-dasharray="'+len+' '+(C-len)+'" stroke-dashoffset="'+(-off)+'" transform="rotate(-90 60 60)"/>';off+=len;});
+    svg.innerHTML=parts;
+    $('#stCatLegend').innerHTML=cats.map(c=>'<div class="lg"><span class="dot" style="background:'+CAT_COLOR[c]+'"></span><span class="lg-n">'+c+'</span><span class="lg-a">'+money(byC[c])+' '+Math.round(byC[c]/total*100)+'%</span></div>').join('');
+  }
+  function addExp(){
+    const item=$('#expItem').value.trim();
+    if(!item){$('#expItem').focus();return;}
+    EXP.push({id:newId(),item,amt:0,payer:"—",cat:$('#expCat').value,day:parseInt($('#expDay').value,10),inv:false,preset:false});
+    save('hl_exp4',EXP);
+    $('#expItem').value='';
+    renderExp();
+  }
+  $('#expAdd').onclick=addExp;
+  $('#expItem').addEventListener('keydown',e=>{if(e.key==='Enter')addExp();});
+  renderExp();
+
+  /* 拖曳排序（≡ 握把，支援滑鼠與觸控；可跨天） */
+  (function(){
+    const list=$('#expList'); let dr=null;
+    list.addEventListener('pointerdown',e=>{
+      const h=e.target.closest('[data-act="drag"]'); if(!h)return;
+      const row=h.closest('.exp-row'); if(!row)return;
+      e.preventDefault();
+      dr={row,h,pid:e.pointerId}; row.classList.add('dragging'); row.style.pointerEvents='none';
+      try{h.setPointerCapture(e.pointerId);}catch(_){}
+    });
+    list.addEventListener('pointermove',e=>{
+      if(!dr)return;
+      const el=document.elementFromPoint(e.clientX,e.clientY); if(!el)return;
+      const over=el.closest('.exp-row');
+      if(over&&over!==dr.row){
+        const rect=over.getBoundingClientRect();
+        over.parentElement.insertBefore(dr.row, e.clientY>rect.top+rect.height/2?over.nextSibling:over);
+      } else {
+        const card=el.closest('.day-card');
+        if(card&&!card.contains(dr.row)){const em=card.querySelector('.day-empty');if(em)em.remove();card.appendChild(dr.row);}
+      }
+    });
+    function end(){
+      if(!dr)return;
+      dr.row.classList.remove('dragging'); dr.row.style.pointerEvents='';
+      try{dr.h.releasePointerCapture(dr.pid);}catch(_){}
+      dr=null;
+      const newOrder=[];
+      list.querySelectorAll('.day-card').forEach(card=>{
+        const day=parseInt(card.dataset.day,10);
+        card.querySelectorAll('.exp-row').forEach(r=>{const ex=EXP.find(x=>x.id===r.dataset.id);if(ex){ex.day=day;newOrder.push(ex);}});
+      });
+      if(newOrder.length===EXP.length){EXP=newOrder;save('hl_exp4',EXP);}
+      renderExp();
+    }
+    list.addEventListener('pointerup',end);
+    list.addEventListener('pointercancel',end);
+  })();
+
+  /* ====================================================
+     住宿：密碼 → 訂房截圖
+     ==================================================== */
+  const BOOKING_PW="1024";  // ← 訂房資訊密碼，要改就改這裡
+  let curBooking=null;
+  function openBooking(key,name){
+    curBooking={key,name};
+    $('#mTitle').textContent=name+'・訂房資訊';
+    const unlocked=sessionStorage.getItem('hl_unlocked')==='1';
+    $('#mPwErr').classList.remove('show');
+    $('#mPw').value='';
+    if(unlocked){showBookingImg();}
+    else{$('#mPwArea').style.display='';$('#mDesc').textContent='輸入密碼以查看訂房確認單';$('#mImgArea').innerHTML='';}
+    $('#modal').classList.add('show');
+    if(!unlocked)setTimeout(()=>$('#mPw').focus(),100);
+  }
+  function showBookingImg(){
+    $('#mPwArea').style.display='none';
+    $('#mDesc').textContent='訂房確認單';
+    const exts=['jpg','png','jpeg','JPG','PNG','JPEG'];
+    let i=0;
+    const img=document.createElement('img');
+    img.alt=curBooking.name+' 訂房確認單';
+    img.onerror=()=>{
+      i++;
+      if(i<exts.length){ img.src='bookings/'+curBooking.key+'.'+exts[i]; }
+      else { $('#mImgArea').innerHTML='<div class="imgmiss">尚未放入截圖<br>請把 '+curBooking.name+' 的截圖存成<br><b>bookings/'+curBooking.key+'.jpg</b>（.png 也可以）</div>'; }
+    };
+    img.src='bookings/'+curBooking.key+'.'+exts[0];
+    $('#mImgArea').innerHTML='';
+    $('#mImgArea').appendChild(img);
+  }
+  function tryPw(){
+    if($('#mPw').value===BOOKING_PW){sessionStorage.setItem('hl_unlocked','1');showBookingImg();}
+    else{$('#mPwErr').classList.add('show');$('#mPw').value='';$('#mPw').focus();}
+  }
+  $('#mPwBtn').onclick=tryPw;
+  $('#mPw').addEventListener('keydown',e=>{if(e.key==='Enter')tryPw();});
+  $('#mClose').onclick=()=>$('#modal').classList.remove('show');
+  $('#modal').addEventListener('click',e=>{if(e.target.id==='modal')$('#modal').classList.remove('show');});
+  window.openBooking=openBooking;
+
+  /* ====================================================
+     交通：真實地圖路線（Leaflet + CARTO 底圖；路線預先烤入，免 API 金鑰）
+     ==================================================== */
+  const ROUTES={
+    S1:[[24.6853,120.8978],[24.69292,120.9151],[24.69048,120.91862],[24.7221,120.93367],[24.72922,120.96045],[24.75628,120.988],[24.75433,121.02168],[24.76351,121.04114],[24.75761,121.06875],[24.77645,121.09302],[24.78177,121.11889],[24.80032,121.13322],[24.80673,121.14736],[24.80593,121.16192],[24.79681,121.18086],[24.79848,121.19275],[24.80828,121.20024],[24.8424,121.19915],[24.85342,121.20435],[24.86612,121.23525],[24.88411,121.25969],[24.90269,121.27208],[24.91008,121.29059],[24.9383,121.32196],[24.93472,121.35122],[24.95092,121.37897],[24.95048,121.41315],[24.96245,121.43763],[24.97361,121.44768],[24.97614,121.46318],[24.98898,121.48211],[24.9787,121.50136],[24.97644,121.51739],[24.9586,121.53978],[24.97616,121.55844],[24.97959,121.58497],[25.0016,121.59803],[24.99809,121.6134],[25.00869,121.64311],[25.00585,121.64978],[24.98313,121.66169],[24.979,121.67534],[24.95308,121.69108],[24.94487,121.71025],[24.85668,121.78988],[24.83072,121.79065],[24.81541,121.78112],[24.76038,121.77785],[24.69335,121.79069],[24.69351,121.76978],[24.67732,121.76672]],
+    S2:[[24.67732,121.76672],[24.67097,121.76408],[24.66698,121.7729],[24.63525,121.7876],[24.61565,121.81103],[24.61397,121.82387],[24.59687,121.83513],[24.58973,121.84935],[24.56913,121.84734],[24.52236,121.82801],[24.49693,121.83628],[24.48358,121.82349],[24.47087,121.81967],[24.47523,121.8162],[24.45616,121.7791],[24.44034,121.77365],[24.41423,121.78645],[24.383,121.78412],[24.34581,121.76517],[24.31965,121.76429],[24.31104,121.75894],[24.31206,121.74901],[24.29019,121.75153],[24.2787,121.74465],[24.26266,121.71948],[24.22981,121.70154],[24.21234,121.68262],[24.20672,121.66635],[24.15089,121.64869],[24.1494,121.64426],[24.13266,121.64189],[24.12384,121.64807],[24.10334,121.61635],[24.063,121.61319],[24.02407,121.62968],[24.00766,121.61562],[23.9947,121.6222],[23.98553,121.62085],[23.97731,121.60504]],
+    S3:[[23.8717,121.5085],[23.88545,121.52367],[23.97973,121.56732],[23.97715,121.58188],[24.00951,121.60904],[24.0818,121.60999],[24.10485,121.61749],[24.12394,121.64827],[24.14938,121.64439],[24.20663,121.66628],[24.22981,121.70154],[24.26255,121.71995],[24.29016,121.75159],[24.31198,121.74937],[24.31998,121.76454],[24.34492,121.76526],[24.38293,121.78446],[24.45532,121.77875],[24.47087,121.81967],[24.49581,121.83601],[24.52236,121.82814],[24.58942,121.84949],[24.59742,121.83519],[24.61175,121.83772],[24.62815,121.80827],[24.73619,121.78196],[24.81683,121.78163],[24.82264,121.77374]],
+    S4:[[24.82264,121.77374],[24.82024,121.77121],[24.81683,121.78163],[24.82943,121.79071],[24.86169,121.78744],[24.94495,121.71051],[24.95511,121.68964],[24.97943,121.67526],[24.98349,121.66157],[25.02823,121.63702],[25.03627,121.61944],[25.02203,121.60035],[24.98185,121.5871],[24.97599,121.55761],[24.95897,121.53996],[24.96025,121.53286],[24.97667,121.51768],[24.98934,121.48263],[24.97632,121.46308],[24.97419,121.44835],[24.96296,121.43811],[24.95062,121.41308],[24.9511,121.37896],[24.93489,121.35126],[24.93797,121.32085],[24.91019,121.2905],[24.90238,121.27146],[24.8843,121.25967],[24.86619,121.23512],[24.85351,121.20427],[24.84231,121.19901],[24.80843,121.20011],[24.79899,121.19332],[24.79682,121.18156],[24.80596,121.16226],[24.80679,121.14684],[24.80038,121.1331],[24.78186,121.1188],[24.77658,121.09295],[24.75795,121.0693],[24.7637,121.04158],[24.75439,121.02076],[24.75782,120.98649],[24.72978,120.961],[24.72247,120.9338],[24.69382,120.91919],[24.6853,120.8978]]
+  };
+  let segMapsBuilt=false;
+  function buildSegMaps(){
+    if(segMapsBuilt||typeof L==='undefined')return;
+    segMapsBuilt=true;
+    document.querySelectorAll('.seg-map').forEach(el=>{
+      const route=ROUTES[el.dataset.route]; if(!route)return;
+      const map=L.map(el,{zoomControl:false,attributionControl:false,dragging:false,scrollWheelZoom:false,doubleClickZoom:false,touchZoom:false,boxZoom:false,keyboard:false,tap:false});
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{maxZoom:19,subdomains:'abcd'}).addTo(map);
+      const line=L.polyline(route,{color:'#1a56db',weight:5,opacity:.9}).addTo(map);
+      L.circleMarker(route[0],{radius:7,color:'#fff',weight:3,fillColor:'#13a4c4',fillOpacity:1}).addTo(map).bindTooltip(el.dataset.fl,{permanent:true,direction:'top',className:'pin-lab start',offset:[0,-5]});
+      L.circleMarker(route[route.length-1],{radius:8,color:'#fff',weight:3,fillColor:'#ef7d5a',fillOpacity:1}).addTo(map).bindTooltip(el.dataset.tl,{permanent:true,direction:'top',className:'pin-lab end',offset:[0,-5]});
+      const fit=()=>{map.invalidateSize();map.fitBounds(line.getBounds(),{padding:[28,28]});};
+      fit(); setTimeout(fit,80);
+    });
+  }
+</script>
+</body>
+</html>
