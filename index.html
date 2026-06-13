@@ -7,6 +7,8 @@
 <title>花蓮宜蘭公路旅行 ｜ 一家五口</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <style>
   :root{
     --ocean:#0a6e8a; --ocean-deep:#064c61; --teal:#13a4c4;
@@ -552,7 +554,31 @@
   /* ---------- 小工具 ---------- */
   const $=s=>document.querySelector(s);
   const load=(k,def)=>{try{const v=JSON.parse(localStorage.getItem(k));return v==null?def:v;}catch(e){return def;}};
-  const save=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+
+  /* ===== Firebase 即時同步（設定留空就自動用本機模式，不會壞）===== */
+  const FIREBASE_CONFIG={
+    apiKey:"AIzaSyAnNAZtCm88ccIrE7FfrvLCdwoQFQ6LSew",
+    authDomain:"sunny-81db7.firebaseapp.com",
+    databaseURL:"https://sunny-81db7-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId:"sunny-81db7",
+    storageBucket:"sunny-81db7.firebasestorage.app",
+    messagingSenderId:"585900238116",
+    appId:"1:585900238116:web:4fce7ce6b4f0d0dcf1bfb1"
+  };
+  const SYNC_PATHS={hl_todo:'trip/todo', hl_person:'trip/person', hl_exp4:'trip/exp'};
+  let fbDB=null, fbReady=false, applyingRemote=false;
+  try{
+    if(FIREBASE_CONFIG.databaseURL && typeof firebase!=='undefined'){
+      firebase.initializeApp(FIREBASE_CONFIG);
+      fbDB=firebase.database();
+      fbReady=true;
+    }
+  }catch(e){ fbReady=false; }
+
+  const save=(k,v)=>{
+    localStorage.setItem(k,JSON.stringify(v));
+    if(fbReady && SYNC_PATHS[k] && !applyingRemote){ try{ fbDB.ref(SYNC_PATHS[k]).set(JSON.stringify(v)); }catch(e){} }
+  };
   const tick='<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 6"/></svg>';
 
   /* ---------- 底部導航 ---------- */
@@ -883,6 +909,28 @@
       L.circleMarker(route[route.length-1],{radius:8,color:'#fff',weight:3,fillColor:'#ef7d5a',fillOpacity:1}).addTo(map).bindTooltip(el.dataset.tl,{permanent:true,direction:'top',className:'pin-lab end',offset:[0,-5]});
       const fit=()=>{map.invalidateSize();map.fitBounds(line.getBounds(),{padding:[28,28]});};
       fit(); setTimeout(fit,80);
+    });
+  }
+
+  /* ====================================================
+     即時同步：接收其他人的更新並套用
+     ==================================================== */
+  function curOf(p){return p==='trip/todo'?TODO:p==='trip/person'?PERSON:EXP;}
+  function lsKeyOf(p){return p==='trip/todo'?'hl_todo':p==='trip/person'?'hl_person':'hl_exp4';}
+  function setOf(p,v){ if(p==='trip/todo')TODO=v; else if(p==='trip/person')PERSON=v; else EXP=v; }
+  function renderOf(p){ if(p==='trip/exp')renderExp(); else renderActivePrep(); }
+  if(fbReady){
+    ['trip/todo','trip/person','trip/exp'].forEach(p=>{
+      fbDB.ref(p).on('value',snap=>{
+        const raw=snap.val(); if(raw==null)return;
+        if(raw===JSON.stringify(curOf(p)))return;
+        let v; try{v=JSON.parse(raw);}catch(e){return;}
+        applyingRemote=true;
+        setOf(p,v);
+        localStorage.setItem(lsKeyOf(p),raw);
+        try{ renderOf(p); }finally{ applyingRemote=false; }
+      });
+      fbDB.ref(p).once('value',snap=>{ if(snap.val()==null){ try{fbDB.ref(p).set(JSON.stringify(curOf(p)));}catch(e){} } });
     });
   }
 </script>
